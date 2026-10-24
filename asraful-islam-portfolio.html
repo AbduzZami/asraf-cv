@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Asraful Islam · Neon Grid</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#0b0620; --cy:#2ef2ff; --pk:#ff3fd8; --yl:#ffd84a; --txt:#e7e3ff; --soft:#a79fd0; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--txt); font-family:'Inter',sans-serif; }
+  #scene{ position:fixed; inset:0; display:block; touch-action:none; }
+  .mono{ font-family:ui-monospace,Menlo,monospace; font-size:0.8em; }
+
+  #intro{ position:fixed; inset:0; z-index:90; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px;
+    background:radial-gradient(ellipse at 50% 60%, rgba(255,63,216,0.18), rgba(11,6,32,0.92) 70%); transition:opacity .8s, visibility .8s; }
+  #intro.hidden{ opacity:0; visibility:hidden; pointer-events:none; }
+  #intro h1{ font-family:'Orbitron',sans-serif; font-size:clamp(1.9rem,6vw,3.4rem); margin:0 0 10px; color:#fff; letter-spacing:0.06em;
+    text-shadow:0 0 18px var(--pk), 0 0 40px rgba(255,63,216,0.5); }
+  #intro h2{ font-weight:500; color:var(--cy); margin:0 0 24px; letter-spacing:0.18em; text-transform:uppercase; font-size:clamp(0.75rem,2.2vw,0.95rem); }
+  #intro p{ max-width:480px; color:var(--soft); line-height:1.6; margin:0 0 30px; font-size:0.92rem; }
+  #enterBtn{ font-family:'Orbitron',sans-serif; font-size:0.95rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer;
+    background:transparent; color:var(--cy); border:2px solid var(--cy); padding:14px 34px; border-radius:2px;
+    box-shadow:0 0 16px rgba(46,242,255,0.45), inset 0 0 12px rgba(46,242,255,0.25); transition:background .2s, color .2s; }
+  #enterBtn:hover{ background:var(--cy); color:#0b0620; }
+
+  #hint{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:20; pointer-events:none; white-space:nowrap;
+    font-size:0.76rem; color:var(--cy); background:rgba(11,6,32,0.6); border:1px solid rgba(46,242,255,0.4); padding:8px 16px; border-radius:20px; transition:opacity 1s; }
+  #hint.fade{ opacity:0; }
+
+  #labels{ position:fixed; inset:0; z-index:15; pointer-events:none; overflow:hidden; }
+  .label{ position:absolute; left:0; top:0; white-space:nowrap; cursor:pointer; pointer-events:auto;
+    font-family:'Orbitron',sans-serif; font-size:0.66rem; letter-spacing:0.06em; color:#fff;
+    background:rgba(16,8,40,0.82); border:1px solid var(--cy); padding:5px 10px; border-radius:3px;
+    box-shadow:0 0 10px rgba(46,242,255,0.35); transition:opacity .25s, border-color .3s; }
+  .label .ic{ margin-right:5px; }
+  .label.center{ font-size:0.74rem; border-color:var(--pk); box-shadow:0 0 12px rgba(255,63,216,0.45); }
+  .label.visited{ border-color:var(--yl); box-shadow:0 0 12px rgba(255,216,74,0.5); }
+
+  #nav{ position:fixed; left:16px; top:16px; z-index:30; max-width:200px; padding:12px 10px;
+    background:rgba(16,8,40,0.7); border:1px solid rgba(46,242,255,0.35); border-radius:8px; backdrop-filter:blur(6px); }
+  #navTitle{ display:flex; justify-content:space-between; cursor:pointer; user-select:none; font-family:'Orbitron',sans-serif; font-size:0.7rem; letter-spacing:0.12em; color:var(--cy); text-transform:uppercase; }
+  #nav .chev{ transition:transform .25s; } #nav.collapsed .chev{ transform:rotate(-90deg); }
+  #nav.collapsed #navCount, #nav.collapsed #navList{ display:none; }
+  #navCount{ font-size:0.68rem; color:var(--soft); margin:4px 0 8px; }
+  .navBtn{ display:flex; align-items:center; gap:8px; width:100%; background:none; border:none; color:var(--txt); font-family:inherit; font-size:0.78rem; padding:6px; border-radius:4px; cursor:pointer; text-align:left; }
+  .navBtn:hover{ background:rgba(46,242,255,0.12); }
+  .navBtn .dot{ width:8px; height:8px; border-radius:1px; background:#3a2f66; transform:rotate(45deg); flex-shrink:0; }
+  .navBtn.visited .dot{ background:var(--yl); box-shadow:0 0 8px var(--yl); }
+  .navBtn.active{ background:rgba(255,63,216,0.18); }
+
+  .pill{ position:fixed; right:16px; top:16px; z-index:32; font-family:'Orbitron',sans-serif; font-size:0.72rem; letter-spacing:0.08em; cursor:pointer;
+    color:var(--pk); background:rgba(16,8,40,0.7); border:1px solid var(--pk); padding:9px 14px; border-radius:20px; box-shadow:0 0 10px rgba(255,63,216,0.3); }
+
+  #panel{ position:fixed; top:0; right:0; height:100%; width:420px; max-width:92vw; z-index:40; overflow-y:auto; padding:28px 28px 50px;
+    background:linear-gradient(180deg, rgba(20,10,48,0.96), rgba(11,6,32,0.97)); border-left:2px solid var(--cy);
+    box-shadow:-10px 0 40px rgba(46,242,255,0.15); transform:translateX(100%); transition:transform .5s cubic-bezier(.25,.9,.3,1); }
+  #panel.open{ transform:translateX(0); }
+  #closePanel{ position:absolute; top:14px; right:16px; width:34px; height:34px; border-radius:50%; border:1px solid var(--pk); background:none; color:var(--pk); font-size:1.2rem; cursor:pointer; }
+  #panel .eyebrow{ font-family:ui-monospace,Menlo,monospace; font-size:0.7rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--pk); margin-bottom:4px; }
+  #panel h2{ font-family:'Orbitron',sans-serif; font-size:1.4rem; margin:0 0 4px; color:#fff; text-shadow:0 0 12px rgba(46,242,255,0.5); padding-right:30px; }
+  #panel .tag{ color:var(--cy); font-size:0.88rem; margin:0 0 18px; }
+  #panel .lead{ font-size:0.9rem; line-height:1.65; margin:0 0 16px; }
+  #panel h3{ font-family:'Orbitron',sans-serif; font-size:0.82rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--yl); margin:22px 0 10px; padding-bottom:6px; border-bottom:1px solid rgba(255,216,74,0.25); }
+  #panel .meta{ display:flex; flex-direction:column; gap:6px; font-size:0.85rem; margin-bottom:14px; }
+  #panel a{ color:var(--cy); }
+  #panel .linkRow{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  #panel .linkRow a{ font-size:0.76rem; padding:5px 12px; border:1px solid var(--cy); border-radius:14px; text-decoration:none; }
+  #panel .linkRow a:hover{ background:var(--cy); color:#0b0620; }
+  #panel ul.plain{ list-style:none; padding:0; margin:0; }
+  #panel ul.plain li{ position:relative; padding-left:18px; margin-bottom:14px; font-size:0.86rem; line-height:1.5; }
+  #panel ul.plain li::before{ content:'▸'; position:absolute; left:0; color:var(--pk); }
+  #panel ul.plain .sub{ display:block; color:var(--soft); font-size:0.8rem; margin-top:2px; }
+  #panel .chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  #panel .chip{ font-size:0.74rem; padding:4px 10px; border-radius:3px; background:rgba(46,242,255,0.1); border:1px solid rgba(46,242,255,0.35); color:var(--cy); }
+  #panel .badge{ display:inline-block; font-size:0.72rem; padding:4px 10px; margin-bottom:14px; border-radius:12px; background:rgba(255,216,74,0.15); color:var(--yl); border:1px solid rgba(255,216,74,0.4); }
+  #panel .statRow{ display:flex; gap:26px; margin:4px 0 16px; }
+  #panel .stat .num{ display:block; font-family:'Orbitron',sans-serif; font-size:1.5rem; color:var(--pk); text-shadow:0 0 10px rgba(255,63,216,0.5); }
+  #panel .stat .lbl{ font-size:0.7rem; color:var(--soft); text-transform:uppercase; letter-spacing:0.06em; }
+  #panel .note{ font-size:0.76rem; color:var(--soft); font-style:italic; }
+  .panelNav{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:28px; padding-top:14px; border-top:1px solid rgba(46,242,255,0.2); }
+  .panelNav button{ font-size:0.72rem; background:none; border:1px solid var(--cy); color:var(--cy); padding:7px 10px; border-radius:14px; cursor:pointer; }
+  .panelNav button:hover{ background:var(--cy); color:#0b0620; }
+  .panelNav span{ font-size:0.7rem; color:var(--soft); }
+
+  @media (max-width:720px){
+    #panel{ top:auto; bottom:0; left:0; width:100%; max-width:100%; height:72vh; border-left:none; border-top:2px solid var(--cy); border-radius:16px 16px 0 0; transform:translateY(100%); }
+    #panel.open{ transform:translateY(0); }
+    .label{ font-size:0.58rem; padding:4px 7px; }
+    #nav{ max-width:160px; } .pill{ font-size:0.64rem; padding:8px 11px; }
+    #hint{ font-size:0.66rem; }
+  }
+</style>
+</head>
+<body>
+<div id="intro">
+  <h1>ASRAFUL ISLAM</h1>
+  <h2>Medical Image Analysis · Efficient AI</h2>
+  <p>A neon city on an endless grid. Each structure is a node of the story — drag to look around, zoom in, and tap a building to bring it online.</p>
+  <button id="enterBtn">Enter the Grid</button>
+</div>
+<canvas id="scene"></canvas>
+<div id="labels"></div>
+<div id="hint">drag to look around · scroll / pinch to zoom · tap a building</div>
+<div id="nav"><div id="navTitle"><span>City Map</span><span class="chev">▾</span></div><div id="navCount"></div><div id="navList"></div></div>
+<button id="homeBtn" class="pill">⌂ Overview</button>
+<div id="panel"><button id="closePanel" aria-label="Close">×</button><div id="panelContent"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ================= CORE (shared low-poly helpers) ================= */
+const D2R = Math.PI/180, TAU = Math.PI*2;
+let _seed = 4242;
+const srand = ()=> (_seed = (_seed*16807) % 2147483647) / 2147483647;
+const rnd = (a,b)=> a + srand()*(b-a);
+const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
+const polar = (deg, r)=> ({ x:Math.sin(deg*D2R)*r, z:Math.cos(deg*D2R)*r });
+
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, 1, 1, 900);
+const anims = [];
+
+const _mats = {};
+function mat(c, opts){
+  if(typeof c !== 'number') return c;
+  const k = c + (opts ? JSON.stringify(opts) : '');
+  if(!_mats[k]) _mats[k] = new THREE.MeshPhongMaterial(Object.assign({ color:c, flatShading:true, shininess:6 }, opts||{}));
+  return _mats[k];
+}
+function add(geo, c, x, y, z, p){ const m = new THREE.Mesh(geo, mat(c)); m.position.set(x||0, y||0, z||0); (p||scene).add(m); return m; }
+function B(w,h,d,c,x,y,z,p){ return add(new THREE.BoxGeometry(w,h,d), c, x, (y||0)+h/2, z, p); }
+function C(rt,rb,h,seg,c,x,y,z,p){ return add(new THREE.CylinderGeometry(rt,rb,h,seg), c, x, (y||0)+h/2, z, p); }
+function K(r,h,seg,c,x,y,z,p){ return add(new THREE.ConeGeometry(r,h,seg), c, x, (y||0)+h/2, z, p); }
+function S(r,c,x,y,z,p,detail){ return add(new THREE.IcosahedronGeometry(r, detail||0), c, x, y, z, p); }
+// triangular prism (gable roof): width w, height h, depth d, base at y
+function prism(w,h,d,c,x,y,z,p){ const m = add(new THREE.CylinderGeometry(1,1,1,3), c, x, 0, z, p); m.rotation.x = -Math.PI/2; m.scale.set(w/1.732, d, h/1.5); m.position.y = (y||0) + h/3; return m; }
+
+/* ================= THEME: NEON GRID (Asraful Islam) ================= */
+// Add your profile links here:
+const LINKS = { linkedin:'#', github:'#', facebook:'#' };
+const RING = 24, COUNT_WORD = 'nodes online';
+const CY = 0x2ef2ff, PK = 0xff3fd8, YL = 0xffd84a;
+scene.background = new THREE.Color(0x0b0620);
+scene.fog = new THREE.Fog(0x170b36, 60, 210);
+scene.add(new THREE.HemisphereLight(0xa496ff, 0x1a0f30, 0.95));
+const dirL = new THREE.DirectionalLight(0xff9be6, 0.6); dirL.position.set(-30, 50, -40); scene.add(dirL);
+
+const _glow = {}; const glow = c=> _glow[c] || (_glow[c] = new THREE.MeshBasicMaterial({ color:c }));
+const _lm = {};
+function edges(m, c){ c = c || CY; _lm[c] = _lm[c] || new THREE.LineBasicMaterial({ color:c }); m.add(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 15), _lm[c])); return m; }
+function flatRing(r0, r1, m, y){ const o = new THREE.Mesh(new THREE.RingGeometry(r0, r1, 64), m); o.rotation.x = -Math.PI/2; o.position.y = y; scene.add(o); return o; }
+
+/* ground, grid, plaza */
+const ground = add(new THREE.CircleGeometry(230, 48), 0x110826); ground.rotation.x = -Math.PI/2;
+const grid = new THREE.GridHelper(460, 115, PK, 0x3a1f78); grid.position.y = 0.05;
+grid.material.transparent = true; grid.material.opacity = 0.5; scene.add(grid);
+flatRing(0, 10.5, mat(0x1b0f3e), 0.15);
+flatRing(10.5, 11, glow(CY), 0.2);
+flatRing(16, 19, mat(0x1a1040), 0.12);
+flatRing(15.8, 16, glow(PK), 0.18); flatRing(19, 19.2, glow(PK), 0.18);
+
+/* synthwave sun, mountains, stars */
+(()=>{
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+  const g = x.createLinearGradient(0,0,0,256); g.addColorStop(0,'#ffe36b'); g.addColorStop(0.55,'#ff6fb0'); g.addColorStop(1,'#a12bff');
+  x.fillStyle = g; x.beginPath(); x.arc(128,128,126,0,TAU); x.fill();
+  x.globalCompositeOperation = 'destination-out';
+  for(let i=0;i<7;i++) x.fillRect(0, 140+i*16, 256, 2+i*1.4);
+  const sun = new THREE.Mesh(new THREE.PlaneGeometry(140,140), new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(c), transparent:true, fog:false, depthWrite:false }));
+  sun.position.set(0, 48, -330); sun.renderOrder = -1; scene.add(sun);
+  const back = sun.clone(); back.position.set(0, 48, 330); back.rotation.y = Math.PI; scene.add(back);
+})();
+for(let i=0;i<30;i++){
+  const p = polar(i/30*360 + rnd(-4,4), rnd(140,180));
+  const m = K(rnd(14,24), rnd(18,44), 4, 0x1c0f40, p.x, 0, p.z); m.rotation.y = rnd(0,3); edges(m, 0x7a2bd6);
+}
+(()=>{
+  const n = 700, pos = new Float32Array(n*3);
+  for(let i=0;i<n;i++){ const th = rnd(0,TAU), ph = Math.acos(rnd(0.08,1)); pos[i*3] = 400*Math.sin(ph)*Math.cos(th); pos[i*3+1] = 400*Math.cos(ph); pos[i*3+2] = 400*Math.sin(ph)*Math.sin(th); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color:0xffffff, size:1.5, sizeAttenuation:false, fog:false })));
+})();
+
+/* drones */
+const drones = [];
+for(let i=0;i<6;i++){ const d = add(new THREE.OctahedronGeometry(0.55), glow(i%2?CY:PK)); drones.push({ d, r:rnd(30,46), h:rnd(9,16), s:rnd(0.15,0.3)*(i%2?1:-1), p:rnd(0,TAU) }); }
+anims.push((dt,t)=> drones.forEach(o=>{ const a = o.p + t*o.s; o.d.position.set(Math.sin(a)*o.r, o.h + Math.sin(t*2+o.p)*0.6, Math.cos(a)*o.r); o.d.rotation.y = t*2; }));
+
+/* scattered neon crystals */
+for(let i=0;i<26;i++){
+  const p = polar(rnd(0,360), rnd(34,70));
+  if(Math.hypot(p.x,p.z) < 30) continue;
+  const m = add(new THREE.OctahedronGeometry(rnd(0.6,1.4)), 0x2a1858, p.x, 1, p.z); m.scale.y = rnd(1.6,2.6); m.position.y = m.scale.y*0.8; edges(m, i%3 ? CY : PK);
+}
+
+function afterBuild(){
+  SECTIONS.forEach(s=>{
+    if(s.center) return;
+    const a = s.angle*D2R, L = RING-4-11, mid = 11 + L/2;
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(2.4, L), mat(0x1d1146)); p.rotation.x = -Math.PI/2; p.rotation.z = -a; p.position.set(Math.sin(a)*mid, 0.22, Math.cos(a)*mid); scene.add(p);
+    const l = new THREE.Mesh(new THREE.PlaneGeometry(0.14, L), glow(CY)); l.rotation.x = -Math.PI/2; l.rotation.z = -a; l.position.set(Math.sin(a)*mid, 0.25, Math.cos(a)*mid); scene.add(l);
+    // pylon between paths
+    const q = polar(s.angle + 180/ringCount, 13);
+    C(0.22, 0.3, 3, 6, 0x2a1a5e, q.x, 0, q.z); S(0.35, glow(PK), q.x, 3.3, q.z);
+  });
+}
+
+function liverGeo(){
+  const g = new THREE.IcosahedronGeometry(1.4, 1), p = g.attributes.position;
+  for(let i=0;i<p.count;i++){ const x = p.getX(i), y = p.getY(i), z = p.getZ(i); p.setXYZ(i, x*(x>0?1.05:1.6), y*(0.75 - x*0.08), z*0.9); }
+  g.computeVertexNormals(); return g;
+}
+
+/* ================= SECTIONS ================= */
+const SECTIONS = [
+{ id:'core', name:'Neural Core', icon:'🧠', center:true, labelH:18, camR:26, focusY:6,
+  build(g){
+    edges(C(6, 6.5, 1, 8, 0x24154f, 0,0,0, g), CY);
+    edges(C(3.4, 3.4, 9, 8, 0x1e1246, 0,1,0, g), PK);
+    edges(C(4.2, 3.4, 0.8, 8, 0x2a1a5e, 0,10,0, g), CY);
+    for(let i=0;i<8;i++){ const a = i/8*TAU + TAU/16; const w = B(0.5, 6, 0.08, glow(i%2?CY:PK), 0,2.5,0, g); w.position.set(Math.sin(a)*3.18, 5.5, Math.cos(a)*3.18); w.rotation.y = a; }
+    const core = add(new THREE.IcosahedronGeometry(1.8,0), mat(PK,{ emissive:0x8a1070 }), 0,14,0, g); edges(core, 0xffffff);
+    const r1 = add(new THREE.TorusGeometry(3,0.12,6,24), glow(CY), 0,14,0, g); r1.rotation.x = Math.PI/2;
+    const r2 = add(new THREE.TorusGeometry(3.6,0.08,6,24), glow(PK), 0,14,0, g);
+    anims.push((dt,t)=>{ core.rotation.y = t*0.6; core.rotation.x = t*0.3; core.position.y = 14 + Math.sin(t*1.5)*0.4; r1.rotation.z = t; r2.rotation.x = t*0.7; r2.rotation.y = t*0.4; });
+  },
+  content:`
+    <div class="eyebrow">Central Node · About</div>
+    <h2>Asraful Islam</h2>
+    <p class="tag">B.Sc. CSE, RUET · Medical Image Analysis &amp; Efficient AI</p>
+    <p class="lead">A Computer Science &amp; Engineering graduate from RUET who builds AI models that stay light: lower computation, faster inference, fewer tokens and cheaper deployment — especially for resource-constrained settings. Equally at home in core CS, research and full-stack software.</p>
+    <div class="meta">
+      <span>📍 Banasree, Khilgaon, Dhaka-1219, Bangladesh</span>
+      <span>✉️ <a href="mailto:asrafulislam20182000@gmail.com">asrafulislam20182000@gmail.com</a></span>
+      <span>📞 <a href="tel:+8801793958831">+880 1793 958 831</a></span>
+    </div>
+    <div class="linkRow">
+      <a href="${LINKS.linkedin}" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="${LINKS.github}" target="_blank" rel="noopener">GitHub</a>
+      <a href="${LINKS.facebook}" target="_blank" rel="noopener">Facebook</a>
+    </div>
+    <h3>Research Interests</h3>
+    <div class="chips"><span class="chip">Medical Image Analysis</span><span class="chip">Computer Vision</span><span class="chip">AI Agents</span><span class="chip">NLP</span><span class="chip">Lightweight Models</span></div>
+    <h3>References</h3>
+    <ul class="plain">
+      <li><strong>Farjana Parvin</strong><span class="sub">Assistant Professor, Dept. of CSE, RUET · Thesis Supervisor</span></li>
+      <li><strong>Dr. Md. Shahid Uz Zaman</strong><span class="sub">Professor &amp; Head, Dept. of CSE, RUET</span></li>
+    </ul>
+    <p class="note">Contact details for references available on request.</p>`
+},
+{ id:'academy', name:'The Academy', icon:'🎓', labelH:10.5,
+  build(g){
+    edges(B(9,1.6,9,0x24154f, 0,0,0, g), CY); edges(B(7,1.6,7,0x2a1858, 0,1.6,0, g), PK);
+    edges(B(5,1.6,5,0x301c66, 0,3.2,0, g), CY); edges(B(3,2.2,3,0x1e1246, 0,4.8,0, g), PK);
+    B(1.8,1.3,0.08, glow(CY), 0,0,4.55, g);
+    const cap = new THREE.Group(); cap.position.y = 7.3; g.add(cap);
+    edges(B(4.6,0.25,4.6,0x150a30, 0,0.5,0, cap), YL); B(1.4,0.6,1.4,0x150a30, 0,0,0, cap); B(0.08,1.2,0.08, glow(YL), 2.1,-0.45,2.1, cap);
+    anims.push((dt,t)=>{ cap.rotation.y = Math.PI/4 + Math.sin(t*0.8)*0.35; cap.position.y = 7.3 + Math.sin(t*1.2)*0.15; });
+  },
+  content:`
+    <div class="eyebrow">Education</div><h2>The Academy</h2><p class="tag">Where the foundations were compiled</p>
+    <ul class="plain">
+      <li><strong>Rajshahi University of Engineering &amp; Technology</strong><span class="sub">B.Sc. in Computer Science &amp; Engineering — GPA 3.85 / 4.00</span><span class="sub">Position 8th of 180 (top 5% of the department)</span><span class="sub mono">Mar 2022 – Aug 2026 · Rajshahi</span></li>
+      <li><strong>BAF Shaheen College Dhaka</strong><span class="sub">Higher Secondary — GPA 5.00 / 5.00</span><span class="sub mono">July 2020 · Dhaka</span></li>
+      <li><strong>Chandraganj High School</strong><span class="sub">Secondary School — GPA 5.00 / 5.00</span><span class="sub mono">April 2018 · Noakhali</span></li>
+    </ul>`
+},
+{ id:'lab', name:'Segmentation Lab', icon:'🔬', labelH:7.5,
+  build(g){
+    edges(C(5,5.4,0.8,10,0x24154f, 0,0,0, g), CY);
+    C(1.1,1.4,1,8,0x1e1246, 0,0.8,0, g);
+    const liver = new THREE.Mesh(liverGeo(), mat(0xd9365e,{ emissive:0x3a0614 })); liver.position.set(0,3.2,0); g.add(liver);
+    const scan = add(new THREE.TorusGeometry(2.7,0.06,4,32), glow(YL), 0,3,0, g); scan.rotation.x = Math.PI/2;
+    const dome = add(new THREE.SphereGeometry(4.4,10,6,0,TAU,0,Math.PI/2), new THREE.MeshPhongMaterial({ color:CY, transparent:true, opacity:0.14, flatShading:true, side:THREE.DoubleSide, depthWrite:false }), 0,0.8,0, g);
+    edges(dome, CY);
+    for(const sx of [-1,1]){ const s = edges(B(2,1.3,0.12,0x150a30, sx*3.2,0.9,3.6, g), PK); s.rotation.y = -sx*0.4; }
+    anims.push((dt,t)=>{ liver.rotation.y = t*0.5; scan.position.y = 1.9 + (Math.sin(t*1.4)*0.5+0.5)*2.6; });
+  },
+  content:`
+    <div class="eyebrow">Research Experience</div><h2>Segmentation Lab</h2><p class="tag">Small networks, sharp masks</p>
+    <span class="badge">Conference paper · under review</span>
+    <ul class="plain">
+      <li><strong>LiMCor-Net</strong> — An Extremely Lightweight Multi-Scale Context Refinement Network for Liver Segmentation from Abdominal CT Images<span class="sub">Undergraduate thesis</span></li>
+      <li><strong>Under review</strong> at the 29th International Conference on Computer and Information Technology (ICCIT 2026)</li>
+      <li><strong>Supervisor:</strong> Farjana Parvin, Assistant Professor, Dept. of CSE, RUET</li>
+    </ul>
+    <p class="note">The floating organ in the dome is being "scanned" — a nod to CT slice-by-slice segmentation.</p>`
+},
+{ id:'yard', name:'Pipeline Yard', icon:'⚙️', labelH:7.5,
+  build(g){
+    edges(B(10,0.5,7,0x1d1146, 0,0,0, g), PK);
+    const cc = [CY,PK,YL,0x8a5cff]; let i = 0;
+    for(const [x,z,l] of [[-3,-1.5,0],[-3,-1.5,1],[-3,1.2,0],[0,-1.5,0],[0,1.2,0],[0,1.2,1],[0,1.2,2]]) edges(B(2.6,1.2,2.2,0x1a1040, x,0.5+l*1.2,z, g), cc[i++%4]);
+    C(0.2,0.25,2.4,6,0x2a1a5e, 3.4,0.5,0.5, g);
+    const helm = new THREE.Group(); helm.position.set(3.4,3.5,0.5); g.add(helm);
+    add(new THREE.TorusGeometry(1.4,0.14,6,7), glow(CY), 0,0,0, helm);
+    for(let k=0;k<7;k++){ const sp = add(new THREE.BoxGeometry(0.1,3.2,0.1), glow(CY), 0,0,0, helm); sp.rotation.z = k*Math.PI/7; }
+    add(new THREE.CylinderGeometry(0.35,0.35,0.2,7), 0x2a1a5e, 0,0,0, helm).rotation.x = Math.PI/2;
+    anims.push((dt,t)=>{ helm.rotation.z = t*0.6; });
+  },
+  content:`
+    <div class="eyebrow">Industrial Attachment</div><h2>Pipeline Yard</h2><p class="tag">Containers stacked, the helm turning</p>
+    <ul class="plain">
+      <li><strong>Industrial Trainee — BJIT Limited</strong><span class="sub mono">March 2025</span><span class="sub">Worked through the full software lifecycle — requirements, planning, development, testing, deployment and maintenance — using industry practice: Scrum, GitHub collaboration, CI/CD pipelines, QA and multi-project workflows.</span></li>
+    </ul>
+    <h3>Tooling</h3>
+    <div class="chips"><span class="chip">Scrum</span><span class="chip">Git / GitHub</span><span class="chip">CI/CD</span><span class="chip">Docker</span><span class="chip">Kubernetes</span><span class="chip">Jenkins</span></div>`
+},
+{ id:'workshop', name:'The Workshop', icon:'💾', labelH:6.5,
+  build(g){
+    edges(B(8,0.8,8,0x150a30, 0,0,0, g), CY);
+    for(const s of [-1,1]) for(let k=0;k<7;k++){ const o = -3+k; B(0.3,0.15,1.2, glow(YL), o,0.2,s*4.5, g); B(1.2,0.15,0.3, glow(YL), s*4.5,0.2,o, g); }
+    edges(B(4,0.6,4,0x2a1858, 0,0.8,0, g), PK);
+    B(2.4,0.08,2.4, glow(PK), 0,1.4,0, g);
+    const bits = []; for(let k=0;k<4;k++) bits.push(edges(B(0.6,0.6,0.6, 0x24154f, 1.35-k*0.9,3,0, g), CY));
+    anims.push((dt,t)=>{ const v = Math.floor(t*1.5)%16; bits.forEach((b,k)=>{ const on = (v>>k)&1; b.position.y += ((on?3.9:2.6) - b.position.y)*Math.min(1,dt*8); b.rotation.y = on ? t : 0; }); });
+  },
+  content:`
+    <div class="eyebrow">Projects</div><h2>The Workshop</h2><p class="tag">A giant chip — the four cubes count in binary</p>
+    <h3>Machine Learning &amp; Full-Stack</h3>
+    <ul class="plain">
+      <li><strong>ShopSmarter</strong> — hybrid personalized e-commerce recommender<span class="sub">Combines collaborative filtering, content-based filtering, popularity ranking and co-occurrence analysis; all-MiniLM-L6-v2 for semantic search and an SVM for prediction. React frontend + Django backend deployed as separate services.</span></li>
+      <li><strong>CareerConnect</strong> — student–alumni networking &amp; job portal<span class="sub">LinkedIn-style platform with profiles, posts, connections, job posting and applications. React, Node.js and MongoDB, frontend and backend deployed independently.</span></li>
+    </ul>
+    <h3>Computer Architecture &amp; VLSI</h3>
+    <ul class="plain">
+      <li><strong>4-Bit CPU Architecture &amp; Simulation</strong><span class="sub mono">May 2025 · Logisim, HDL</span><span class="sub">A 4-bit CPU with a custom 11-instruction ISA (ADD, SUB, Rotate Left and more), with components implemented in HDL.</span></li>
+    </ul>`
+},
+{ id:'arena', name:'Chess Arena', icon:'♟️', labelH:7.5,
+  build(g){
+    edges(B(10,1,10,0x1a1040, 0,0,0, g), PK);
+    for(let i=0;i<8;i++) for(let j=0;j<8;j++) B(1.1,0.1,1.1, (i+j)%2 ? 0xe9e0ff : 0x2a1858, -3.85+i*1.1,1,-3.85+j*1.1, g);
+    const king = new THREE.Group(); king.position.set(1.65,1.1,-0.55); g.add(king);
+    C(0.45,0.5,0.3,8,YL, 0,0,0, king); C(0.25,0.4,1.4,8,YL, 0,0.3,0, king); C(0.42,0.3,0.25,8,YL, 0,1.7,0, king); B(0.12,0.6,0.12,YL, 0,1.95,0, king); B(0.42,0.12,0.12,YL, 0,2.2,0, king);
+    const kn = new THREE.Group(); kn.position.set(-1.65,1.1,0.55); g.add(kn);
+    C(0.45,0.5,0.3,8,CY, 0,0,0, kn); C(0.3,0.42,0.6,8,CY, 0,0.3,0, kn); const hd = B(0.45,0.9,0.85,CY, 0,0.8,0.05, kn); hd.rotation.x = -0.35;
+    edges(B(6,2.6,0.3,0x150a30, 0,2.6,-5.3, g), CY);
+    for(const sx of [-2.6,2.6]) B(0.2,2.6,0.2,0x2a1a5e, sx,0,-5.3, g);
+    [1.6,1.0,2.2,1.3,1.9].forEach((h,k)=> B(0.55,h,0.06, glow(k%2?PK:CY), -2+k,2.8,-5.12, g));
+    anims.push((dt,t)=>{ kn.position.y = 1.1 + Math.abs(Math.sin(t*1.6))*0.7; kn.rotation.y = Math.sin(t*0.8)*0.6; });
+  },
+  content:`
+    <div class="eyebrow">Competitive Programming</div><h2>Chess Arena</h2><p class="tag">Problems solved against the clock</p>
+    <div class="statRow">
+      <div class="stat"><span class="num">150+</span><span class="lbl">Codeforces solved</span></div>
+      <div class="stat"><span class="num">35+</span><span class="lbl">LeetCode solved</span></div>
+    </div>
+    <p class="lead">Handle <span class="mono">asraf2003179</span> on both Codeforces and LeetCode. Problem solving shaped a systematic, analytical way of attacking hard problems — and chess is a favourite pastime off the keyboard.</p>`
+},
+{ id:'pitch', name:'The Pitch', icon:'⚽', labelH:5,
+  build(g){
+    B(13.5,0.3,9.5,0x1a1040, 0,0,0, g); B(12.4,0.06,8.4,0x1f8a4c, 0,0.3,0, g);
+    const W = glow(0xeafff2);
+    B(12,0.04,0.12,W, 0,0.36,4,g); B(12,0.04,0.12,W, 0,0.36,-4,g); B(0.12,0.04,8,W, 6,0.36,0,g); B(0.12,0.04,8,W, -6,0.36,0,g); B(0.12,0.04,8,W, 0,0.36,0,g);
+    const cc = add(new THREE.RingGeometry(1.2,1.33,24), W, 0,0.4,0, g); cc.rotation.x = -Math.PI/2;
+    for(const sx of [-1,1]){ for(const sz of [-1,1]) B(0.12,1.4,0.12,0xffffff, sx*6,0.36,sz*1.4, g); B(0.12,0.12,2.92,0xffffff, sx*6,1.7,0, g); }
+    const ball = add(new THREE.IcosahedronGeometry(0.3,1), 0xffffff, 0,0.66,0, g);
+    C(0.5,0.6,0.6,6,0x2a1a5e, 5.4,0.3,-3.3, g); K(0.45,1.1,6,YL, 5.4,0.9,-3.3, g);
+    anims.push((dt,t)=>{ ball.position.x = Math.sin(t*0.9)*4.8; ball.position.z = Math.sin(t*1.7)*2.2; ball.rotation.z = -ball.position.x/0.3; ball.rotation.x = ball.position.z/0.3; });
+  },
+  content:`
+    <div class="eyebrow">Extra-Curricular · Honors</div><h2>The Pitch</h2><p class="tag">Life beyond the terminal</p>
+    <ul class="plain">
+      <li><strong>Three-time runner-up team</strong> — CSE Night Football Tournament, RUET<span class="sub">Midfielder and attacking forward</span></li>
+      <li><strong>Marathon 1.0 — 7 km run</strong><span class="sub mono">February 21, 2025 · Ovijatrik, RUET Adventure Club</span><span class="sub">Completed on International Mother Language Day.</span></li>
+    </ul>
+    <h3>Honors &amp; Awards</h3>
+    <ul class="plain">
+      <li><strong>SSC Board Scholarship</strong> (General Grade)<span class="sub mono">June 2018 · Cumilla Education Board</span></li>
+      <li><strong>JSC Board Scholarship</strong> (General Grade)<span class="sub mono">April 2017 · Cumilla Education Board</span></li>
+    </ul>`
+},
+{ id:'vault', name:'Data Vault', icon:'🗄️', labelH:9.5,
+  build(g){
+    edges(C(4.5,5,0.8,8,0x1d1146, 0,0,0, g), CY);
+    C(0.3,0.3,6.6,6, glow(YL), 0,0.8,0, g);
+    const disks = []; for(let k=0;k<5;k++) disks.push(edges(C(3.2-k*0.4,3.2-k*0.4,0.45,10,0x24154f, 0,1.3+k*1.1,0, g), k%2?PK:CY));
+    anims.push((dt,t)=> disks.forEach((d,k)=>{ d.rotation.y = t*(0.3+k*0.15)*(k%2?-1:1); }));
+  },
+  content:`
+    <div class="eyebrow">Skills · Certifications</div><h2>Data Vault</h2><p class="tag">Everything stored on the spinning disks</p>
+    <h3>Programming</h3><div class="chips"><span class="chip">C++</span><span class="chip">Python</span><span class="chip">C</span></div>
+    <h3>Web &amp; Data</h3><div class="chips"><span class="chip">Django</span><span class="chip">HTML</span><span class="chip">MySQL</span><span class="chip">MATLAB</span></div>
+    <h3>Specialized</h3><div class="chips"><span class="chip">Computer Vision</span><span class="chip">Video Coding</span><span class="chip">Data Analysis</span><span class="chip">Technical Writing</span></div>
+    <h3>Certifications</h3>
+    <ul class="plain">
+      <li><strong>PHP (Laravel) Training</strong> — 80 hours, Dept. of CSE, RUET, under the EDGE Project (Bangladesh Computer Council, ICT Division)<span class="sub mono">May 2024 – Feb 2025</span></li>
+      <li><strong>Supervised Machine Learning: Regression and Classification</strong> — Coursera<span class="sub mono">March 2024</span></li>
+    </ul>
+    <h3>Languages &amp; Interests</h3>
+    <p class="lead">English (fluent), Bengali (native). Interests: AI, data science, travelling, chess, football and singing.</p>`
+}
+];
+
+/* ================= ENGINE: sections, labels, camera, panel ================= */
+const labelsEl = document.getElementById('labels');
+const labelEls = {}, pick = [], visited = new Set();
+const ringCount = SECTIONS.filter(s=>!s.center).length;
+let _k = 0;
+SECTIONS.forEach(s=>{
+  const g = new THREE.Group();
+  if(s.center){ s.angle = 0; s.pos = { x:0, z:0 }; }
+  else {
+    if(s.angle == null) s.angle = _k*360/ringCount;
+    _k++;
+    s.pos = polar(s.angle, s.r || RING);
+    g.position.set(s.pos.x, 0, s.pos.z);
+    g.rotation.y = s.angle*D2R + Math.PI;     // local +z faces the centre
+  }
+  s.build(g); scene.add(g);
+  g.traverse(o=>{ if(o.isMesh){ o.userData.id = s.id; pick.push(o); } });
+  const el = document.createElement('div');
+  el.className = 'label' + (s.center ? ' center' : '');
+  el.innerHTML = `<span class="ic">${s.icon}</span>${s.name}`;
+  el.addEventListener('click', ()=> select(s.id));
+  labelsEl.appendChild(el);
+  labelEls[s.id] = { el, pos:new THREE.Vector3(s.pos.x, s.labelH || 7, s.pos.z) };
+});
+if(typeof afterBuild === 'function') afterBuild();
+
+/* ---------- nav list ---------- */
+const navEl = document.getElementById('nav'), navList = document.getElementById('navList');
+SECTIONS.forEach(s=>{
+  const b = document.createElement('button');
+  b.className = 'navBtn'; b.dataset.id = s.id;
+  b.innerHTML = `<span class="dot"></span><span>${s.icon} ${s.name}</span>`;
+  b.addEventListener('click', ()=> select(s.id));
+  navList.appendChild(b);
+});
+document.getElementById('navTitle').addEventListener('click', ()=> navEl.classList.toggle('collapsed'));
+if(window.innerWidth <= 720) navEl.classList.add('collapsed');
+function updateNav(){
+  document.querySelectorAll('.navBtn').forEach(b=>{
+    b.classList.toggle('visited', visited.has(b.dataset.id));
+    b.classList.toggle('active', b.dataset.id === current);
+  });
+  document.getElementById('navCount').textContent = `${visited.size} / ${SECTIONS.length} ${COUNT_WORD}`;
+}
+
+/* ---------- camera ---------- */
+const HOME = { target:new THREE.Vector3(0,3,0), polar:1.08, radius:68 };
+const cam = { target:HOME.target.clone(), az:0.55, polar:HOME.polar, radius:HOME.radius };
+const goal = { az:cam.az, polar:cam.polar, radius:cam.radius };
+let flight = null;
+const wrap = a=>{ while(a>Math.PI) a-=TAU; while(a<-Math.PI) a+=TAU; return a; };
+const ease = t=> t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+function syncGoal(){ goal.az = cam.az; goal.polar = cam.polar; goal.radius = cam.radius; }
+function stopFlight(){ if(flight){ flight = null; syncGoal(); } }
+function flyTo(t, az, pol, rad, dur){
+  flight = { ft:cam.target.clone(), tt:t.clone(), fa:cam.az, da:wrap(az-cam.az), fp:cam.polar, tp:pol, fr:cam.radius, tr:rad, st:performance.now(), dur:dur||1200 };
+}
+function applyCam(){
+  const sp = Math.sin(cam.polar);
+  camera.position.set(cam.target.x + cam.radius*sp*Math.sin(cam.az), cam.target.y + cam.radius*Math.cos(cam.polar), cam.target.z + cam.radius*sp*Math.cos(cam.az));
+  if(camera.position.y < 1.5) camera.position.y = 1.5;
+  camera.lookAt(cam.target);
+}
+
+/* ---------- input ---------- */
+const pts = new Map();
+let drag = false, moved = 0, lx = 0, ly = 0, pinch0 = null, rad0 = 0;
+const pd = ()=>{ const a = [...pts.values()]; return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y); };
+canvas.addEventListener('pointerdown', e=>{
+  canvas.setPointerCapture(e.pointerId);
+  pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if(pts.size === 2){ stopFlight(); pinch0 = pd(); rad0 = goal.radius; drag = false; }
+  else { drag = true; moved = 0; lx = e.clientX; ly = e.clientY; }
+});
+canvas.addEventListener('pointermove', e=>{
+  if(!pts.has(e.pointerId)) return;
+  pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if(pts.size >= 2){ if(pinch0) goal.radius = clamp(rad0*pinch0/pd(), 8, 115); return; }
+  if(!drag) return;
+  const dx = e.clientX-lx, dy = e.clientY-ly;
+  moved += Math.abs(dx) + Math.abs(dy); lx = e.clientX; ly = e.clientY;
+  if(moved < 5) return;
+  stopFlight();
+  goal.az -= dx*0.006;
+  goal.polar = clamp(goal.polar - dy*0.005, 0.35, 1.45);
+  hideHint();
+});
+function pointerEnd(e){
+  const tap = e.type === 'pointerup' && drag && moved < 5 && pts.size === 1;
+  pts.delete(e.pointerId);
+  if(pts.size < 2) pinch0 = null;
+  if(pts.size === 0) drag = false;
+  if(tap) pickAt(e.clientX, e.clientY);
+}
+canvas.addEventListener('pointerup', pointerEnd);
+canvas.addEventListener('pointercancel', pointerEnd);
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault(); stopFlight();
+  goal.radius = clamp(goal.radius*Math.exp(clamp(e.deltaY,-200,200)*0.0015), 8, 115);
+  hideHint();
+}, { passive:false });
+const ray = new THREE.Raycaster(), mv = new THREE.Vector2();
+function pickAt(x, y){
+  mv.set((x/window.innerWidth)*2-1, -(y/window.innerHeight)*2+1);
+  ray.setFromCamera(mv, camera);
+  const hit = ray.intersectObjects(pick, false)[0];
+  if(hit) select(hit.object.userData.id);
+}
+
+/* ---------- panel ---------- */
+const panel = document.getElementById('panel'), panelContent = document.getElementById('panelContent');
+let current = null, panelOpen = false;
+function select(id){
+  const i = SECTIONS.findIndex(s=>s.id===id); if(i < 0) return;
+  const s = SECTIONS[i];
+  current = id; panelOpen = true; visited.add(id);
+  const az = s.center ? cam.az : s.angle*D2R + Math.PI;
+  let pol = s.center ? 0.95 : 1.05, rad = s.camR || 21;
+  const t = new THREE.Vector3(s.pos.x, s.focusY || 3, s.pos.z);
+  if(window.innerWidth <= 720){ rad *= 1.6; pol = 0.9; t.y -= rad*0.3; }
+  else {
+    const pw = Math.min(420, window.innerWidth*0.92);
+    const halfW = rad*Math.tan(camera.fov*D2R/2)*camera.aspect;
+    const sh = (pw/2)/(window.innerWidth/2)*halfW;
+    t.x += Math.cos(az)*sh; t.z -= Math.sin(az)*sh;
+  }
+  flyTo(t, az, pol, rad, 1300);
+  const prev = SECTIONS[(i-1+SECTIONS.length)%SECTIONS.length], next = SECTIONS[(i+1)%SECTIONS.length];
+  panelContent.innerHTML = s.content + `<div class="panelNav"><button data-nav="${prev.id}">← ${prev.icon} ${prev.name}</button><span>${i+1} / ${SECTIONS.length}</span><button data-nav="${next.id}">${next.icon} ${next.name} →</button></div>`;
+  panel.scrollTop = 0; panel.classList.add('open');
+  updateNav(); hideHint();
+}
+function deselect(){
+  current = null; panelOpen = false; panel.classList.remove('open');
+  flyTo(HOME.target, cam.az, HOME.polar, HOME.radius, 1200); updateNav();
+}
+panelContent.addEventListener('click', e=>{ const b = e.target.closest('[data-nav]'); if(b) select(b.dataset.nav); });
+document.getElementById('closePanel').addEventListener('click', deselect);
+document.getElementById('homeBtn').addEventListener('click', deselect);
+window.addEventListener('keydown', e=>{ if(e.key === 'Escape' && panelOpen) deselect(); });
+
+/* ---------- labels ---------- */
+const _v = new THREE.Vector3();
+function updateLabels(){
+  const W = window.innerWidth, H = window.innerHeight;
+  for(const id in labelEls){
+    const L = labelEls[id];
+    _v.copy(L.pos).project(camera);
+    if(_v.z > 1 || (panelOpen && id === current)){ L.el.style.opacity = '0'; L.el.style.pointerEvents = 'none'; continue; }
+    const d = camera.position.distanceTo(L.pos), sc = clamp(34/d, 0.72, 1.15);
+    L.el.style.transform = `translate(${(_v.x*0.5+0.5)*W}px,${(-_v.y*0.5+0.5)*H}px) translate(-50%,-100%) scale(${sc})`;
+    L.el.style.opacity = '1'; L.el.style.pointerEvents = 'auto';
+    L.el.classList.toggle('visited', visited.has(id));
+  }
+}
+
+/* ---------- hint, intro, resize ---------- */
+const hintEl = document.getElementById('hint');
+function hideHint(){ hintEl.classList.add('fade'); }
+setTimeout(hideHint, 9000);
+document.getElementById('enterBtn').addEventListener('click', ()=> document.getElementById('intro').classList.add('hidden'));
+function onResize(){
+  camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+window.addEventListener('resize', onResize); onResize();
+updateNav();
+
+/* ---------- loop ---------- */
+const clock = new THREE.Clock(); let T = 0;
+function loop(){
+  requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), 0.05); T += dt;
+  if(flight){
+    let p = (performance.now()-flight.st)/flight.dur; if(p > 1) p = 1;
+    const e = ease(p);
+    cam.target.lerpVectors(flight.ft, flight.tt, e);
+    cam.az = flight.fa + flight.da*e;
+    cam.polar = flight.fp + (flight.tp-flight.fp)*e;
+    cam.radius = flight.fr + (flight.tr-flight.fr)*e;
+    if(p >= 1) flight = null;
+    syncGoal();
+  } else {
+    const k = 1 - Math.exp(-dt*10);
+    cam.az += wrap(goal.az-cam.az)*k; cam.polar += (goal.polar-cam.polar)*k; cam.radius += (goal.radius-cam.radius)*k;
+  }
+  applyCam();
+  for(let i=0;i<anims.length;i++) anims[i](dt, T);
+  updateLabels();
+  renderer.render(scene, camera);
+}
+loop();
+</script>
+</body>
+</html>
